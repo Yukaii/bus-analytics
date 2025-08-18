@@ -36,7 +36,7 @@ const getRouteColor = (routeName: string): string => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-function MapController({ selectedRoute, onViewportChange, setProjector }: { selectedRoute: ProcessedRoute | null, onViewportChange: (bbox: BBox, zoom: number) => void, setProjector: (m: L.Map) => void }) {
+function MapController({ selectedRoute, onViewportChange, setProjector }: { selectedRoute: ProcessedRoute | null, onViewportChange: (bbox: BBox, zoom: number, center: L.LatLngExpression) => void, setProjector: (m: L.Map) => void }) {
   const map = useMap();
 
   // Expose map instance for projection
@@ -50,6 +50,7 @@ function MapController({ selectedRoute, onViewportChange, setProjector }: { sele
       const bounds = L.latLngBounds(
         selectedRoute.stops.map(stop => [stop.lat, stop.lng] as L.LatLngTuple)
       );
+      // Fit to bounds without triggering excessive move events; Leaflet still fires moveend once
       map.fitBounds(bounds, { padding: [20, 20] });
     }
   }, [map, selectedRoute]);
@@ -59,7 +60,7 @@ function MapController({ selectedRoute, onViewportChange, setProjector }: { sele
   const emit = () => {
     const b = map.getBounds();
     const bbox: BBox = { minLat: b.getSouth(), minLng: b.getWest(), maxLat: b.getNorth(), maxLng: b.getEast() };
-    onViewportChange(bbox, map.getZoom());
+    onViewportChange(bbox, map.getZoom(), map.getCenter());
   };
   useMapEvent('moveend', () => {
     if (report.current) cancelAnimationFrame(report.current);
@@ -86,13 +87,28 @@ export const MapView: React.FC<MapViewProps> = ({
   onStopClick,
   onRouteSelect
 }) => {
-  const [mapCenter] = useState<[number, number]>([35.6762, 139.6503]); // Tokyo center
+  const initialCenter = (() => {
+    const sp = new URLSearchParams(window.location.search);
+    const lat = Number(sp.get('lat'));
+    const lng = Number(sp.get('lng'));
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng] as [number, number];
+    return [35.6762, 139.6503] as [number, number];
+  })();
+  const [mapCenter, setMapCenter] = useState<[number, number]>(initialCenter); // Tokyo center
   const [bbox, setBbox] = useState<BBox | null>(null);
-  const [zoom, setZoom] = useState<number>(11);
+  const [zoom, setZoom] = useState<number>(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const z = Number(sp.get('zoom'));
+    return Number.isFinite(z) ? Number(z) : 11;
+  });
 
-  const handleViewportChange = (b: BBox, z: number) => {
+  const handleViewportChange = (b: BBox, z: number, c: L.LatLngExpression) => {
     setBbox(b);
     setZoom(z);
+    const center = Array.isArray(c) ? c : [ (c as any).lat, (c as any).lng ];
+    setMapCenter(center as [number, number]);
+    // Broadcast map center/zoom to URL via window signal; App will handle URL write
+    (window as any).__mapViewport = { lat: center[0], lng: center[1], zoom: z };
   };
 
   const visibleRoutes = useMemo(() => {
@@ -141,9 +157,9 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div className="h-full w-full">
       <MapContainer
-        center={mapCenter}
-        zoom={11}
-        style={{ height: '100%', width: '100%' }}
+         center={mapCenter}
+         zoom={zoom}
+         style={{ height: '100%', width: '100%' }}
         className="rounded-lg"
       >
         <TileLayer

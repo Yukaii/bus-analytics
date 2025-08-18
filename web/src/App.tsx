@@ -6,6 +6,7 @@ import { loadBusData } from './utils/dataProcessor';
 import { ProcessedRoute, ProcessedStop } from './types/BusData';
 import { Loader, Bus } from 'lucide-react';
 import './App.css';
+import { parseUrlState, pushUrlState } from './utils/urlState';
 
 function App() {
   const [routes, setRoutes] = useState<ProcessedRoute[]>([]);
@@ -22,6 +23,13 @@ function App() {
       .then(({ stops, routes }) => {
         setStops(stops);
         setRoutes(routes);
+        // Initialize from URL after data is loaded, so we can match route ids
+        const u = parseUrlState();
+        if (typeof u.all === 'boolean') setShowAllRoutes(u.all);
+        if (u.route) {
+          const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route);
+          if (r) setSelectedRoute(r);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -31,9 +39,48 @@ function App() {
       });
   }, []);
 
+  // Sync map viewport (lat,lng,zoom) to URL based on MapView signal
+  useEffect(() => {
+    const t = setInterval(() => {
+      const v = (window as any).__mapViewport as { lat: number; lng: number; zoom: number } | undefined;
+      if (!v) return;
+      // Suppress viewport URL sync briefly after route selection to avoid racing the route push
+      const suppressUntil = (window as any).__suppressViewportUrlSyncUntil as number | undefined;
+      if (suppressUntil && Date.now() < suppressUntil) return;
+      const sp = new URLSearchParams(window.location.search);
+      const lat = Number(sp.get('lat')); const lng = Number(sp.get('lng')); const zoom = Number(sp.get('zoom'));
+      const changed = !Number.isFinite(lat) || Math.abs(lat - v.lat) > 1e-5 || !Number.isFinite(lng) || Math.abs(lng - v.lng) > 1e-5 || !Number.isFinite(zoom) || Math.round(zoom) !== Math.round(v.zoom);
+      if (changed) {
+        // Preserve current route and flags by merging via pushUrlState/buildSearch
+        pushUrlState({ lat: v.lat, lng: v.lng, zoom: v.zoom }, true);
+      }
+    }, 600);
+    return () => clearInterval(t);
+  }, []);
+
+  // Handle browser back/forward to restore route selection and list toggle
+  useEffect(() => {
+    const onPop = () => {
+      const u = parseUrlState();
+      if (typeof u.all === 'boolean') setShowAllRoutes(u.all);
+      if (u.route) {
+        const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route) || null;
+        setSelectedRoute(r);
+      } else {
+        setSelectedRoute(null);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [routes]);
+
   const handleRouteSelect = (route: ProcessedRoute | null) => {
     setSelectedRoute(route);
     setSelectedStop(null);
+    // Update URL state
+    pushUrlState({ route: route ? route.routeId : null });
+    // After fitBounds, map will move; temporarily pause viewport URL syncing to avoid race
+    (window as any).__suppressViewportUrlSyncUntil = Date.now() + 800;
   };
 
   // Poll lightweight signal from MapView to update visible route ids for sidebar count
@@ -55,6 +102,9 @@ function App() {
     // Clear selected route when toggling show all routes
     if (show) {
       setSelectedRoute(null);
+      pushUrlState({ route: null, all: show });
+    } else {
+      pushUrlState({ all: show });
     }
   };
 
