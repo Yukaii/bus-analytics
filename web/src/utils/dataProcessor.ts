@@ -1,4 +1,4 @@
-import { BusStop, BusRoutePattern, ProcessedRoute, ProcessedStop } from '../types/BusData';
+import { BusStop, BusRoutePattern, ProcessedRoute, ProcessedStop, RouteBounds } from '../types/BusData';
 
 export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in kilometers
@@ -132,6 +132,17 @@ export function processRoutesData(
 
       const routeName = pattern['owl:sameAs']?.split('.')[2] || pattern['odpt:pattern'] || '';
 
+      // Compute bounds from coordinates or stops
+      const allPoints: number[][] = coordinates.length > 0 ? coordinates : routeStops.map(s => [s.lat, s.lng]);
+      const bounds: RouteBounds = allPoints.length
+        ? {
+            minLat: Math.min(...allPoints.map(p => p[0])),
+            minLng: Math.min(...allPoints.map(p => p[1])),
+            maxLat: Math.max(...allPoints.map(p => p[0])),
+            maxLng: Math.max(...allPoints.map(p => p[1]))
+          }
+        : { minLat: 0, minLng: 0, maxLat: 0, maxLng: 0 };
+
       const result = {
         routeId: pattern['owl:sameAs'] || pattern['@id'],
         routeName,
@@ -140,7 +151,8 @@ export function processRoutesData(
         totalDistance,
         avgDistance,
         stops: routeStops,
-        coordinates
+        coordinates,
+        bounds
       };
 
       if (index < 3) { // Log first few results
@@ -159,6 +171,44 @@ export function processRoutesData(
 
   console.log(`🎯 Final processed routes: ${results.length} routes created`);
   return results;
+}
+
+export interface BBox { minLat: number; minLng: number; maxLat: number; maxLng: number; }
+
+export function intersects(b: BBox, r: RouteBounds): boolean {
+  return !(r.minLat > b.maxLat || r.maxLat < b.minLat || r.minLng > b.maxLng || r.maxLng < b.minLng);
+}
+
+export function filterRoutesInBBox(routes: ProcessedRoute[], bbox: BBox): ProcessedRoute[] {
+  return routes.filter(r => intersects(bbox, r.bounds));
+}
+
+export type ProjectFn = (lat: number, lng: number) => { x: number; y: number };
+
+export function sampleStopsForViewport(
+  stops: ProcessedStop[],
+  project: ProjectFn,
+  options?: { targetTotal?: number; minPxGap?: number }
+): ProcessedStop[] {
+  const targetTotal = options?.targetTotal ?? 200;
+  const minPxGap = options?.minPxGap ?? 28;
+  if (stops.length <= targetTotal) return stops;
+
+  const out: ProcessedStop[] = [];
+  let lastX = Number.NEGATIVE_INFINITY;
+  let lastY = Number.NEGATIVE_INFINITY;
+  for (const s of stops) {
+    const { x, y } = project(s.lat, s.lng);
+    const dx = x - lastX;
+    const dy = y - lastY;
+    if (Math.hypot(dx, dy) >= minPxGap || out.length === 0) {
+      out.push(s);
+      lastX = x;
+      lastY = y;
+      if (out.length >= targetTotal) break;
+    }
+  }
+  return out;
 }
 
 export async function loadBusData(): Promise<{

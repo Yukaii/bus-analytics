@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvent } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ProcessedRoute, ProcessedStop } from '../types/BusData';
+import { BBox, filterRoutesInBBox, sampleStopsForViewport } from '../utils/dataProcessor';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -35,9 +36,15 @@ const getRouteColor = (routeName: string): string => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-function MapController({ selectedRoute }: { selectedRoute: ProcessedRoute | null }) {
+function MapController({ selectedRoute, onViewportChange, setProjector }: { selectedRoute: ProcessedRoute | null, onViewportChange: (bbox: BBox, zoom: number) => void, setProjector: (m: L.Map) => void }) {
   const map = useMap();
-  
+
+  // Expose map instance for projection
+  useEffect(() => {
+    setProjector(map);
+  }, [map, setProjector]);
+
+  // Fit to selected route
   useEffect(() => {
     if (selectedRoute && selectedRoute.stops.length > 0) {
       const bounds = L.latLngBounds(
@@ -46,7 +53,28 @@ function MapController({ selectedRoute }: { selectedRoute: ProcessedRoute | null
       map.fitBounds(bounds, { padding: [20, 20] });
     }
   }, [map, selectedRoute]);
-  
+
+  // Report viewport on moveend/zoomend (debounced via RAF)
+  const report = useRef<number | null>(null);
+  const emit = () => {
+    const b = map.getBounds();
+    const bbox: BBox = { minLat: b.getSouth(), minLng: b.getWest(), maxLat: b.getNorth(), maxLng: b.getEast() };
+    onViewportChange(bbox, map.getZoom());
+  };
+  useMapEvent('moveend', () => {
+    if (report.current) cancelAnimationFrame(report.current);
+    report.current = requestAnimationFrame(emit);
+  });
+  useMapEvent('zoomend', () => {
+    if (report.current) cancelAnimationFrame(report.current);
+    report.current = requestAnimationFrame(emit);
+  });
+
+  useEffect(() => {
+    emit(); // initial
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return null;
 }
 
@@ -59,13 +87,56 @@ export const MapView: React.FC<MapViewProps> = ({
   onRouteSelect
 }) => {
   const [mapCenter] = useState<[number, number]>([35.6762, 139.6503]); // Tokyo center
-  
-  const displayedStops = selectedRoute ? selectedRoute.stops : stops; // Show all stops
-  const displayedRoutes = selectedRoute 
-    ? [selectedRoute] 
-    : showAllRoutes 
-      ? routes // Show all routes when showAllRoutes is true
-      : []; // Show no routes by default
+  const [bbox, setBbox] = useState<BBox | null>(null);
+  const [zoom, setZoom] = useState<number>(11);
+
+  const handleViewportChange = (b: BBox, z: number) => {
+    setBbox(b);
+    setZoom(z);
+  };
+
+  const visibleRoutes = useMemo(() => {
+    if (selectedRoute) return [selectedRoute];
+    if (!showAllRoutes || !bbox) return [];
+    return filterRoutesInBBox(routes, bbox);
+  }, [routes, bbox, showAllRoutes, selectedRoute]);
+
+  const projectorRef = useRef<L.Map | null>(null);
+
+  const projected = (lat: number, lng: number) => {
+    if (!projectorRef.current) return { x: 0, y: 0 };
+    const p = projectorRef.current.latLngToContainerPoint([lat, lng]);
+    return { x: p.x, y: p.y };
+  };
+
+  const displayedStops = useMemo(() => {
+    if (selectedRoute) return selectedRoute.stops;
+    if (!bbox) return [];
+    // Collect stops from visible routes only
+    const stopSet = new Map<string, ProcessedStop>();
+    for (const r of visibleRoutes) {
+      for (const s of r.stops) {
+        if (
+          s.lat >= bbox.minLat && s.lat <= bbox.maxLat &&
+          s.lng >= bbox.minLng && s.lng <= bbox.maxLng
+        ) {
+          stopSet.set(s.id, s);
+        }
+      }
+    }
+    const allStops = Array.from(stopSet.values());
+    // Viewport-aware sampling
+    const targetTotal = Math.max(80, Math.min(250, Math.floor(zoom * 20)));
+    return sampleStopsForViewport(allStops, projected, { targetTotal, minPxGap: 28 });
+  }, [selectedRoute, bbox, visibleRoutes, zoom]);
+
+  const displayedRoutes = visibleRoutes;
+
+  // Expose visible route ids to parent via a custom event on window (simple signal)
+  useEffect(() => {
+    const ids = new Set(visibleRoutes.map(r => r.routeId));
+    (window as any).__visibleRouteIds = ids;
+  }, [visibleRoutes]);
 
   return (
     <div className="h-full w-full">
@@ -80,7 +151,7 @@ export const MapView: React.FC<MapViewProps> = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        <MapController selectedRoute={selectedRoute} />
+        <MapController selectedRoute={selectedRoute} onViewportChange={handleViewportChange} setProjector={(m) => { projectorRef.current = m; }} />
         
         {/* Render route lines */}
         {displayedRoutes
@@ -96,7 +167,7 @@ export const MapView: React.FC<MapViewProps> = ({
           ))}
       
         
-        {/* Render bus stops */}
+        {/* Render bus stops (sampled) */}
         {displayedStops.map((stop) => (
           <Marker
             key={stop.id}

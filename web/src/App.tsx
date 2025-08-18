@@ -13,6 +13,7 @@ function App() {
   const [selectedRoute, setSelectedRoute] = useState<ProcessedRoute | null>(null);
   const [selectedStop, setSelectedStop] = useState<ProcessedStop | null>(null);
   const [showAllRoutes, setShowAllRoutes] = useState(false);
+  const [visibleRouteIds, setVisibleRouteIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +35,16 @@ function App() {
     setSelectedRoute(route);
     setSelectedStop(null);
   };
+
+  // Poll lightweight signal from MapView to update visible route ids for sidebar count
+  useEffect(() => {
+    const t = setInterval(() => {
+      const ids = (window as any).__visibleRouteIds as Set<string> | undefined;
+      if (ids) setVisibleRouteIds(new Set(ids));
+    }, 500);
+    return () => clearInterval(t);
+  }, []);
+
 
   const handleStopClick = (stop: ProcessedStop) => {
     setSelectedStop(stop);
@@ -106,6 +117,7 @@ function App() {
             showAllRoutes={showAllRoutes}
             onRouteSelect={handleRouteSelect}
             onToggleShowAllRoutes={handleToggleShowAllRoutes}
+            visibleRouteIds={visibleRouteIds}
           />
         </div>
 

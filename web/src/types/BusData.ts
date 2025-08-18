@@ -40,6 +40,13 @@ export interface BusStopOrder {
   'odpt:busstopPole': string;
 }
 
+export interface RouteBounds {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+}
+
 export interface ProcessedRoute {
   routeId: string;
   routeName: string;
@@ -49,6 +56,7 @@ export interface ProcessedRoute {
   avgDistance: number;
   stops: ProcessedStop[];
   coordinates: number[][];
+  bounds: RouteBounds;
 }
 
 export interface ProcessedStop {

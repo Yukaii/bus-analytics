@@ -8,6 +8,7 @@ interface RouteListProps {
   showAllRoutes: boolean;
   onRouteSelect: (route: ProcessedRoute | null) => void;
   onToggleShowAllRoutes: (show: boolean) => void;
+  visibleRouteIds?: Set<string>;
 }
 
 export const RouteList: React.FC<RouteListProps> = ({
@@ -15,7 +16,8 @@ export const RouteList: React.FC<RouteListProps> = ({
   selectedRoute,
   showAllRoutes,
   onRouteSelect,
-  onToggleShowAllRoutes
+  onToggleShowAllRoutes,
+  visibleRouteIds
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'distance' | 'stops'>('name');
@@ -92,7 +94,7 @@ export const RouteList: React.FC<RouteListProps> = ({
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <label htmlFor="showAllRoutes" className="ml-2 text-sm text-gray-700">
-              Show all routes on map ({routes.length} routes)
+              Show routes in view {visibleRouteIds ? `(${visibleRouteIds.size})` : `(${routes.length})`}
             </label>
           </div>
           
