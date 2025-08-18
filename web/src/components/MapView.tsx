@@ -92,14 +92,14 @@ export const MapView: React.FC<MapViewProps> = ({
     const lat = Number(sp.get('lat'));
     const lng = Number(sp.get('lng'));
     if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng] as [number, number];
-    return [35.6762, 139.6503] as [number, number];
+    return [35.68853, 139.75742] as [number, number];
   })();
   const [mapCenter, setMapCenter] = useState<[number, number]>(initialCenter); // Tokyo center
   const [bbox, setBbox] = useState<BBox | null>(null);
   const [zoom, setZoom] = useState<number>(() => {
     const sp = new URLSearchParams(window.location.search);
     const z = Number(sp.get('zoom'));
-    return Number.isFinite(z) ? Number(z) : 11;
+    return Number.isFinite(z) ? Number(z) : 12;
   });
 
   const handleViewportChange = (b: BBox, z: number, c: L.LatLngExpression) => {

@@ -45,6 +45,14 @@ function App() {
           const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route);
           if (r) setSelectedRoute(r);
         }
+        
+        // Set default viewport in URL if not present
+        const sp = new URLSearchParams(window.location.search);
+        const hasViewport = sp.has('lat') && sp.has('lng') && sp.has('zoom');
+        if (!hasViewport) {
+          pushUrlState({ lat: 35.68853, lng: 139.75742, zoom: 12 }, true);
+        }
+        
         setLoading(false);
       })
       .catch((err) => {

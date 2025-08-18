@@ -127,7 +127,7 @@ export const RouteList: React.FC<RouteListProps> = ({
               onClick={() => onRouteSelect(route)}
               className={`p-3 mb-2 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                 selectedRoute?.routeId === route.routeId
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400'
                   : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300'
               }`}
             >
