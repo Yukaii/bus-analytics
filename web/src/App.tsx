@@ -4,11 +4,26 @@ import { RouteList } from './components/RouteList';
 import { StatsPanel } from './components/StatsPanel';
 import { loadBusData } from './utils/dataProcessor';
 import { ProcessedRoute, ProcessedStop } from './types/BusData';
-import { Loader, Bus } from 'lucide-react';
+import { Loader, Bus, PanelLeftOpen, PanelLeftClose, Moon, Sun } from 'lucide-react';
 import './App.css';
 import { parseUrlState, pushUrlState } from './utils/urlState';
 
 function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {}
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    // Apply theme to html for tailwind dark classes
+    const root = document.documentElement;
+    if (theme === 'dark') root.classList.add('dark'); else root.classList.remove('dark');
+    try { localStorage.setItem('theme', theme); } catch {}
+  }, [theme]);
   const [routes, setRoutes] = useState<ProcessedRoute[]>([]);
   const [stops, setStops] = useState<ProcessedStop[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<ProcessedRoute | null>(null);
@@ -69,6 +84,7 @@ function App() {
       } else {
         setSelectedRoute(null);
       }
+
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -110,11 +126,11 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-600">Loading Tokyo bus data...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a moment</p>
+          <p className="text-lg text-gray-600 dark:text-gray-300">Loading Tokyo bus data...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">This may take a moment</p>
         </div>
       </div>
     );
@@ -122,13 +138,13 @@ function App() {
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="text-red-500 mb-4">
             <Bus className="w-12 h-12 mx-auto" />
           </div>
           <p className="text-lg text-red-600 mb-2">Error Loading Data</p>
-          <p className="text-gray-600">{error}</p>
+          <p className="text-gray-600 dark:text-gray-300">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -141,35 +157,50 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 p-4">
-        <div className="flex items-center gap-3">
-          <Bus className="w-8 h-8 text-blue-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Tokyo Bus Analytics Explorer
-            </h1>
-            <p className="text-sm text-gray-600">
-              Interactive route exploration and network analysis
-            </p>
-          </div>
+      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Bus className="w-6 h-6 text-blue-600" />
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex-1">Tokyo Bus Analytics</h1>
+          <button
+            aria-label="Toggle theme"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            className="rounded-full p-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+            title="Toggle dark mode"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Route List */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-          <RouteList
-            routes={routes}
-            selectedRoute={selectedRoute}
-            showAllRoutes={showAllRoutes}
-            onRouteSelect={handleRouteSelect}
-            onToggleShowAllRoutes={handleToggleShowAllRoutes}
-            visibleRouteIds={visibleRouteIds}
-          />
+        <div className={`relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-[width] duration-300 overflow-hidden ${sidebarOpen ? 'w-80' : 'w-0'}`} id="sidebar">
+          {sidebarOpen && (
+            <RouteList
+              routes={routes}
+              selectedRoute={selectedRoute}
+              showAllRoutes={showAllRoutes}
+              onRouteSelect={handleRouteSelect}
+              onToggleShowAllRoutes={handleToggleShowAllRoutes}
+              visibleRouteIds={visibleRouteIds}
+            />
+          )}
         </div>
+
+        {/* Floating sidebar toggle like Google Maps */}
+        <button
+          type='button'
+          aria-label="Toggle sidebar"
+          onClick={() => setSidebarOpen(o => !o)}
+          className={`fixed bottom-10 z-[9999] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl p-2 transition-all duration-300 ${
+            sidebarOpen ? 'left-[332px]' : 'left-3'
+          }`}
+        >
+          {sidebarOpen ? <PanelLeftClose className="w-5 h-5 text-gray-700 dark:text-gray-300" /> : <PanelLeftOpen className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+        </button>
 
         {/* Center - Map */}
         <div className="flex-1 relative">
@@ -181,15 +212,15 @@ function App() {
             onStopClick={handleStopClick}
             onRouteSelect={handleRouteSelect}
           />
-          
+
           {/* Selected Stop Info Overlay */}
           {selectedStop && (
-            <div className="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-lg border max-w-sm">
+            <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 dark:text-gray-100 p-4 rounded-lg shadow-lg border max-w-sm">
               <h3 className="font-bold text-lg mb-2">{selectedStop.name}</h3>
               {selectedStop.nameEn && (
-                <p className="text-gray-600 mb-2">{selectedStop.nameEn}</p>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">{selectedStop.nameEn}</p>
               )}
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-300">
                 <p>Coordinates: {selectedStop.lat.toFixed(6)}, {selectedStop.lng.toFixed(6)}</p>
                 <p>Routes: {selectedStop.routes.length}</p>
               </div>
@@ -204,19 +235,19 @@ function App() {
         </div>
 
         {/* Right Sidebar - Stats */}
-        <div className="w-96 bg-white border-l border-gray-200">
+        <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
           <StatsPanel routes={routes} selectedRoute={selectedRoute} />
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 p-3">
-        <div className="text-center text-sm text-gray-600">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-2">
+        <div className="text-center text-xs text-gray-600 dark:text-gray-300">
           <p className="truncate">
             Source: Tokyo Open Data Platform (ODPT) |
-            <a 
-              href="https://github.com/Yukaii/bus-analytics" 
-              className="text-blue-600 hover:text-blue-800 ml-1"
+            <a
+              href="https://github.com/Yukaii/bus-analytics"
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-1"
               target="_blank"
               rel="noopener noreferrer"
             >

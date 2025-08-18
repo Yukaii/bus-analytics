@@ -11,63 +11,63 @@ interface StatsPanelProps {
 export const StatsPanel: React.FC<StatsPanelProps> = ({ routes, selectedRoute }) => {
   if (selectedRoute) {
     return (
-      <div className="p-4 bg-white">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+      <div className="p-4 bg-white dark:bg-gray-900">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-gray-100">
           <RouteIcon className="w-5 h-5" />
           Route Details
         </h3>
         
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-gray-900">{selectedRoute.routeName}</h4>
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{selectedRoute.routeName}</h4>
             {selectedRoute.routeNameJa && (
-              <p className="text-blue-600">{selectedRoute.routeNameJa}</p>
+              <p className="text-blue-600 dark:text-blue-400">{selectedRoute.routeNameJa}</p>
             )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {selectedRoute.numStops}
               </div>
-              <div className="text-sm text-gray-600">Total Stops</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Total Stops</div>
             </div>
             
-            <div className="bg-green-50 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {selectedRoute.avgDistance.toFixed(2)}km
               </div>
-              <div className="text-sm text-gray-600">Avg Distance</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Avg Distance</div>
             </div>
             
-            <div className="bg-purple-50 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {selectedRoute.totalDistance.toFixed(1)}km
               </div>
-              <div className="text-sm text-gray-600">Total Distance</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Total Distance</div>
             </div>
             
-            <div className="bg-orange-50 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                 {selectedRoute.stops.length > 1 ? 
                   (selectedRoute.totalDistance / (selectedRoute.stops.length - 1)).toFixed(2) : 
                   '0.00'
                 }km
               </div>
-              <div className="text-sm text-gray-600">Distance/Stop</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Distance/Stop</div>
             </div>
           </div>
           
           {/* Route Stops List */}
           <div className="mt-6">
-            <h5 className="font-semibold mb-2">Route Stops</h5>
+            <h5 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Route Stops</h5>
             <div className="max-h-64 overflow-y-auto">
               {selectedRoute.stops.map((stop, index) => (
                 <div key={stop.id} className="flex items-center gap-2 py-1 text-sm">
-                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-medium">
                     {index + 1}
                   </div>
-                  <span className="flex-1">{stop.name}</span>
+                  <span className="flex-1 text-gray-900 dark:text-gray-100">{stop.name}</span>
                 </div>
               ))}
             </div>
@@ -111,35 +111,35 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ routes, selectedRoute })
   return (
     <div className="h-full overflow-y-auto">
       {/* Overall Stats */}
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-gray-100">
           <TrendingUp className="w-5 h-5" />
           Network Statistics
         </h3>
         
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{routes.length}</div>
-            <div className="text-sm text-gray-600">Total Routes</div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{routes.length}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Total Routes</div>
           </div>
           
-          <div className="bg-green-50 p-3 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{totalStops}</div>
-            <div className="text-sm text-gray-600">Total Stops</div>
+          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalStops}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Total Stops</div>
           </div>
           
-          <div className="bg-purple-50 p-3 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
+          <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
               {avgDistance.toFixed(2)}km
             </div>
-            <div className="text-sm text-gray-600">Avg Distance</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Avg Distance</div>
           </div>
           
-          <div className="bg-orange-50 p-3 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">
+          <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
               {totalDistance.toFixed(0)}km
             </div>
-            <div className="text-sm text-gray-600">Total Network</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Total Network</div>
           </div>
         </div>
       </div>
@@ -148,7 +148,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ routes, selectedRoute })
       <div className="p-4">
         {/* Distance Distribution Pie Chart */}
         <div className="mb-6">
-          <h4 className="font-semibold mb-3">Distance Distribution</h4>
+          <h4 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Distance Distribution</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -173,7 +173,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ routes, selectedRoute })
         
         {/* Top Routes Bar Chart */}
         <div>
-          <h4 className="font-semibold mb-3">Top 10 Routes by Average Distance</h4>
+          <h4 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Top 10 Routes by Average Distance</h4>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
