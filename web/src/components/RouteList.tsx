@@ -5,13 +5,17 @@ import { ProcessedRoute } from '../types/BusData';
 interface RouteListProps {
   routes: ProcessedRoute[];
   selectedRoute: ProcessedRoute | null;
+  showAllRoutes: boolean;
   onRouteSelect: (route: ProcessedRoute | null) => void;
+  onToggleShowAllRoutes: (show: boolean) => void;
 }
 
 export const RouteList: React.FC<RouteListProps> = ({
   routes,
   selectedRoute,
-  onRouteSelect
+  showAllRoutes,
+  onRouteSelect,
+  onToggleShowAllRoutes
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'distance' | 'stops'>('name');
@@ -77,15 +81,30 @@ export const RouteList: React.FC<RouteListProps> = ({
           <option value="stops">Sort by Number of Stops</option>
         </select>
 
-        {/* Clear Selection Button */}
-        {selectedRoute && (
-          <button
-            onClick={() => onRouteSelect(null)}
-            className="w-full mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Clear Selection
-          </button>
-        )}
+        {/* Map Display Controls */}
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="showAllRoutes"
+              checked={showAllRoutes}
+              onChange={(e) => onToggleShowAllRoutes(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label htmlFor="showAllRoutes" className="ml-2 text-sm text-gray-700">
+              Show all routes on map ({routes.length} routes)
+            </label>
+          </div>
+          
+          {selectedRoute && (
+            <button
+              onClick={() => onRouteSelect(null)}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Clear Selection
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Route List */}

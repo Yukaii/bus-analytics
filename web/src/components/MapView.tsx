@@ -16,7 +16,9 @@ interface MapViewProps {
   routes: ProcessedRoute[];
   stops: ProcessedStop[];
   selectedRoute: ProcessedRoute | null;
+  showAllRoutes: boolean;
   onStopClick: (stop: ProcessedStop) => void;
+  onRouteSelect: (route: ProcessedRoute | null) => void;
 }
 
 const getRouteColor = (routeName: string): string => {
@@ -52,12 +54,18 @@ export const MapView: React.FC<MapViewProps> = ({
   routes, 
   stops, 
   selectedRoute, 
-  onStopClick 
+  showAllRoutes,
+  onStopClick,
+  onRouteSelect
 }) => {
   const [mapCenter] = useState<[number, number]>([35.6762, 139.6503]); // Tokyo center
   
-  const displayedStops = selectedRoute ? selectedRoute.stops : stops.slice(0, 500); // Limit for performance
-  const displayedRoutes = selectedRoute ? [selectedRoute] : routes.slice(0, 50);
+  const displayedStops = selectedRoute ? selectedRoute.stops : stops; // Show all stops
+  const displayedRoutes = selectedRoute 
+    ? [selectedRoute] 
+    : showAllRoutes 
+      ? routes // Show all routes when showAllRoutes is true
+      : []; // Show no routes by default
 
   return (
     <div className="h-full w-full">
@@ -75,15 +83,18 @@ export const MapView: React.FC<MapViewProps> = ({
         <MapController selectedRoute={selectedRoute} />
         
         {/* Render route lines */}
-        {displayedRoutes.map((route) => (
-          <Polyline
-            key={route.routeId}
-            positions={route.coordinates as L.LatLngTuple[]}
-            color={getRouteColor(route.routeName)}
-            weight={selectedRoute ? 4 : 2}
-            opacity={selectedRoute ? 0.8 : 0.6}
-          />
-        ))}
+        {displayedRoutes
+          .filter(route => route.coordinates && route.coordinates.length >= 2)
+          .map((route) => (
+            <Polyline
+              key={route.routeId}
+              positions={route.coordinates as L.LatLngTuple[]}
+              color={getRouteColor(route.routeName)}
+              weight={selectedRoute ? 4 : 2}
+              opacity={selectedRoute ? 0.8 : 0.6}
+            />
+          ))}
+      
         
         {/* Render bus stops */}
         {displayedStops.map((stop) => (
@@ -95,17 +106,45 @@ export const MapView: React.FC<MapViewProps> = ({
             }}
           >
             <Popup>
-              <div className="p-2">
-                <h3 className="font-bold text-sm">{stop.name}</h3>
+              <div className="p-3 min-w-[250px]">
+                <h3 className="font-bold text-sm mb-2">{stop.name}</h3>
                 {stop.nameEn && (
-                  <p className="text-xs text-gray-600">{stop.nameEn}</p>
+                  <p className="text-xs text-gray-600 mb-2">{stop.nameEn}</p>
                 )}
-                <p className="text-xs mt-1">
-                  Routes: {stop.routes.length}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {stop.lat.toFixed(6)}, {stop.lng.toFixed(6)}
-                </p>
+                
+                <div className="mb-3">
+                  <p className="text-xs text-gray-700 mb-2">
+                    {stop.routes.length} routes pass through this stop:
+                  </p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {stop.routes.slice(0, 10).map((routeId) => {
+                      const route = routes.find(r => r.routeId === routeId);
+                      return route ? (
+                        <button
+                          key={routeId}
+                          onClick={() => onRouteSelect(route)}
+                          className="block w-full text-left px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition-colors"
+                        >
+                          <div className="font-medium text-blue-800">{route.routeName}</div>
+                          <div className="text-blue-600 text-[10px]">{route.routeNameJa}</div>
+                        </button>
+                      ) : (
+                        <div key={routeId} className="text-xs text-gray-500 px-2 py-1">
+                          {routeId.split(':').pop()?.split('.').slice(1, 3).join(' ')}
+                        </div>
+                      );
+                    })}
+                    {stop.routes.length > 10 && (
+                      <p className="text-xs text-gray-500 px-2">
+                        ... and {stop.routes.length - 10} more routes
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="border-t pt-2 text-xs text-gray-500">
+                  <p>{stop.lat.toFixed(6)}, {stop.lng.toFixed(6)}</p>
+                </div>
               </div>
             </Popup>
           </Marker>

@@ -12,6 +12,7 @@ function App() {
   const [stops, setStops] = useState<ProcessedStop[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<ProcessedRoute | null>(null);
   const [selectedStop, setSelectedStop] = useState<ProcessedStop | null>(null);
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +37,14 @@ function App() {
 
   const handleStopClick = (stop: ProcessedStop) => {
     setSelectedStop(stop);
+  };
+
+  const handleToggleShowAllRoutes = (show: boolean) => {
+    setShowAllRoutes(show);
+    // Clear selected route when toggling show all routes
+    if (show) {
+      setSelectedRoute(null);
+    }
   };
 
   if (loading) {
@@ -94,7 +103,9 @@ function App() {
           <RouteList
             routes={routes}
             selectedRoute={selectedRoute}
+            showAllRoutes={showAllRoutes}
             onRouteSelect={handleRouteSelect}
+            onToggleShowAllRoutes={handleToggleShowAllRoutes}
           />
         </div>
 
@@ -104,7 +115,9 @@ function App() {
             routes={routes}
             stops={stops}
             selectedRoute={selectedRoute}
+            showAllRoutes={showAllRoutes}
             onStopClick={handleStopClick}
+            onRouteSelect={handleRouteSelect}
           />
           
           {/* Selected Stop Info Overlay */}
