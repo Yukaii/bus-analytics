@@ -16,6 +16,16 @@ export const RouteList: React.FC<RouteListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'distance' | 'stops'>('name');
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🚌 RouteList received:', {
+      routesCount: routes.length,
+      firstRoute: routes[0],
+      searchTerm,
+      sortBy
+    });
+  }, [routes, searchTerm, sortBy]);
+
   const filteredAndSortedRoutes = useMemo(() => {
     let filtered = routes.filter(route =>
       route.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||

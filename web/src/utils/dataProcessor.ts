@@ -18,7 +18,7 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 
 export function processStopsData(busStops: BusStop[]): ProcessedStop[] {
   return busStops.map(stop => ({
-    id: stop['@id'],
+    id: stop['owl:sameAs'] || stop['@id'], // Use owl:sameAs for ODPT ID mapping
     name: stop.title?.ja || stop['dc:title'],
     nameEn: stop.title?.en || '',
     lat: stop['geo:lat'],
@@ -31,15 +31,33 @@ export function processRoutesData(
   routePatterns: BusRoutePattern[],
   processedStops: ProcessedStop[]
 ): ProcessedRoute[] {
+  console.log('🔄 Processing routes data...', {
+    patternsCount: routePatterns.length,
+    stopsCount: processedStops.length
+  });
+
   const stopMap = new Map(processedStops.map(stop => [stop.id, stop]));
+  console.log('📍 Stop map created with', stopMap.size, 'stops');
   
-  return routePatterns
-    .map(pattern => {
+  const results = routePatterns
+    .map((pattern, index) => {
+      if (index < 3) { // Log first few patterns for debugging
+        console.log(`🛣️ Processing pattern ${index}:`, {
+          id: pattern['@id'],
+          title: pattern['dc:title'],
+          sameAs: pattern['owl:sameAs'],
+          stopsOrder: pattern['odpt:busstopPoleOrder']?.length || 0,
+          rawStopsOrder: pattern['odpt:busstopPoleOrder']
+        });
+      }
       const routeStops = pattern['odpt:busstopPoleOrder']
         ?.sort((a, b) => a['odpt:index'] - b['odpt:index'])
         .map(order => {
           const stopId = order['odpt:busstopPole'];
           const stop = stopMap.get(stopId);
+          if (index < 3) {
+            console.log(`  Stop lookup: ${stopId} -> ${stop ? 'found' : 'NOT FOUND'}`);
+          }
           return stop ? {
             ...stop,
             name: order['odpt:note'] || stop.name
@@ -47,7 +65,16 @@ export function processRoutesData(
         })
         .filter(Boolean) as ProcessedStop[];
 
-      if (routeStops.length < 2) return null;
+      if (index < 3) {
+        console.log(`  Route stops found: ${routeStops.length} out of ${pattern['odpt:busstopPoleOrder']?.length || 0}`);
+      }
+
+      if (routeStops.length < 2) {
+        if (index < 3) {
+          console.log(`  ❌ Skipping route ${index}: only ${routeStops.length} stops found`);
+        }
+        return null;
+      }
 
       // Calculate total distance
       let totalDistance = 0;
@@ -59,13 +86,13 @@ export function processRoutesData(
 
       const avgDistance = totalDistance / (routeStops.length - 1);
       
-      // Extract route coordinates if available
-      const coordinates = pattern['ug:region']?.coordinates || 
-        routeStops.map(stop => [stop.lng, stop.lat]);
+      // Extract route coordinates if available (convert from [lng, lat] to [lat, lng] for Leaflet)
+      const coordinates = pattern['ug:region']?.coordinates.map(coord => [coord[1], coord[0]]) || 
+        routeStops.map(stop => [stop.lat, stop.lng]);
 
       const routeName = pattern['owl:sameAs']?.split('.')[2] || pattern['odpt:pattern'] || '';
 
-      return {
+      const result = {
         routeId: pattern['owl:sameAs'] || pattern['@id'],
         routeName,
         routeNameJa: pattern['dc:title'] || '',
@@ -75,8 +102,23 @@ export function processRoutesData(
         stops: routeStops,
         coordinates
       };
+
+      if (index < 3) { // Log first few results
+        console.log(`✅ Processed route ${index}:`, {
+          routeId: result.routeId,
+          routeName: result.routeName,
+          routeNameJa: result.routeNameJa,
+          numStops: result.numStops,
+          coordinatesLength: coordinates.length
+        });
+      }
+
+      return result;
     })
     .filter(Boolean) as ProcessedRoute[];
+
+  console.log(`🎯 Final processed routes: ${results.length} routes created`);
+  return results;
 }
 
 export async function loadBusData(): Promise<{
@@ -84,23 +126,39 @@ export async function loadBusData(): Promise<{
   routes: ProcessedRoute[];
 }> {
   try {
+    console.log('🚌 Starting to load bus data...');
     const [stopsResponse, routesResponse] = await Promise.all([
       fetch('/data/BusstopPole.json'),
       fetch('/data/BusroutePattern.json')
     ]);
 
+    console.log('📡 Fetch responses:', {
+      stopsStatus: stopsResponse.status,
+      routesStatus: routesResponse.status
+    });
+
     const busStops: BusStop[] = await stopsResponse.json();
     const routePatterns: BusRoutePattern[] = await routesResponse.json();
 
+    console.log('📊 Raw data loaded:', {
+      stopsCount: busStops.length,
+      routePatternsCount: routePatterns.length
+    });
+
     const processedStops = processStopsData(busStops);
     const processedRoutes = processRoutesData(routePatterns, processedStops);
+
+    console.log('✅ Processed data:', {
+      processedStopsCount: processedStops.length,
+      processedRoutesCount: processedRoutes.length
+    });
 
     return {
       stops: processedStops,
       routes: processedRoutes
     };
   } catch (error) {
-    console.error('Error loading bus data:', error);
+    console.error('❌ Error loading bus data:', error);
     return {
       stops: [],
       routes: []

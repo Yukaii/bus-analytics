@@ -78,7 +78,7 @@ export const MapView: React.FC<MapViewProps> = ({
         {displayedRoutes.map((route) => (
           <Polyline
             key={route.routeId}
-            positions={route.stops.map(stop => [stop.lat, stop.lng] as L.LatLngTuple)}
+            positions={route.coordinates as L.LatLngTuple[]}
             color={getRouteColor(route.routeName)}
             weight={selectedRoute ? 4 : 2}
             opacity={selectedRoute ? 0.8 : 0.6}

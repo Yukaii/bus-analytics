@@ -1,6 +1,7 @@
 export interface BusStop {
   '@id': string;
   '@type': string;
+  'owl:sameAs': string;
   title: {
     ja: string;
     en: string;
