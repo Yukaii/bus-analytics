@@ -12,7 +12,7 @@ function App() {
   const [stops, setStops] = useState<ProcessedStop[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<ProcessedRoute | null>(null);
   const [selectedStop, setSelectedStop] = useState<ProcessedStop | null>(null);
-  const [showAllRoutes, setShowAllRoutes] = useState(false);
+  const [showAllRoutes, setShowAllRoutes] = useState(true);
   const [visibleRouteIds, setVisibleRouteIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -162,14 +162,10 @@ function App() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 p-3">
         <div className="text-center text-sm text-gray-600">
-          <p>
-            Data: {routes.length} routes, {stops.length} stops | 
-            Built with React + TypeScript + Leaflet
-          </p>
-          <p className="text-xs mt-1">
-            Source: Tokyo Open Data Platform (ODPT) | 
+          <p className="truncate">
+            Source: Tokyo Open Data Platform (ODPT) |
             <a 
-              href="https://github.com/yukai/bus-analytics" 
+              href="https://github.com/Yukaii/bus-analytics" 
               className="text-blue-600 hover:text-blue-800 ml-1"
               target="_blank"
               rel="noopener noreferrer"

@@ -33,10 +33,16 @@ export const RouteList: React.FC<RouteListProps> = ({
   }, [routes, searchTerm, sortBy]);
 
   const filteredAndSortedRoutes = useMemo(() => {
+    // Filter by search term (English or Japanese)
     let filtered = routes.filter(route =>
       route.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       route.routeNameJa.includes(searchTerm)
     );
+
+    // If visibleRouteIds provided and showAllRoutes is enabled, filter to only routes in view
+    if (visibleRouteIds && showAllRoutes) {
+      filtered = filtered.filter(r => visibleRouteIds.has(r.routeId));
+    }
 
     return filtered.sort((a, b) => {
       switch (sortBy) {
@@ -46,10 +52,13 @@ export const RouteList: React.FC<RouteListProps> = ({
           return b.numStops - a.numStops;
         case 'name':
         default:
-          return a.routeName.localeCompare(b.routeName);
+          // Prefer Japanese name when available for sorting by name
+          const aName = a.routeNameJa || a.routeName;
+          const bName = b.routeNameJa || b.routeName;
+          return aName.localeCompare(bName);
       }
     });
-  }, [routes, searchTerm, sortBy]);
+  }, [routes, searchTerm, sortBy, visibleRouteIds, showAllRoutes]);
 
   return (
     <div className="h-full flex flex-col">
@@ -125,11 +134,11 @@ export const RouteList: React.FC<RouteListProps> = ({
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm text-gray-900">
-                    {route.routeName}
+                    {route.routeNameJa || route.routeName}
                   </h3>
-                  {route.routeNameJa && (
-                    <p className="text-sm text-blue-600 mt-1">
-                      {route.routeNameJa}
+                  {route.routeName && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {route.routeName}
                     </p>
                   )}
                   
