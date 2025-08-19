@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvent } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -13,6 +13,12 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+export interface MapViewRef {
+  setViewport: (viewport: { lat: number; lng: number; zoom: number }) => void;
+  getViewport: () => { lat: number; lng: number; zoom: number } | null;
+  getVisibleRouteIds: () => Set<string>;
+}
+
 interface MapViewProps {
   routes: ProcessedRoute[];
   stops: ProcessedStop[];
@@ -20,6 +26,7 @@ interface MapViewProps {
   showAllRoutes: boolean;
   onStopClick: (stop: ProcessedStop) => void;
   onRouteSelect: (route: ProcessedRoute | null) => void;
+  onViewportChange?: (viewport: { lat: number; lng: number; zoom: number }) => void;
 }
 
 const getRouteColor = (routeName: string): string => {
@@ -79,14 +86,15 @@ function MapController({ selectedRoute, onViewportChange, setProjector }: { sele
   return null;
 }
 
-export const MapView: React.FC<MapViewProps> = ({ 
+export const MapView = forwardRef<MapViewRef, MapViewProps>(({ 
   routes, 
   stops, 
   selectedRoute, 
   showAllRoutes,
   onStopClick,
-  onRouteSelect
-}) => {
+  onRouteSelect,
+  onViewportChange
+}, ref) => {
   const initialCenter = (() => {
     const sp = new URLSearchParams(window.location.search);
     const lat = Number(sp.get('lat'));
@@ -107,22 +115,10 @@ export const MapView: React.FC<MapViewProps> = ({
     setZoom(z);
     const center = Array.isArray(c) ? c : [ (c as any).lat, (c as any).lng ];
     setMapCenter(center as [number, number]);
-    // Broadcast map center/zoom to URL via window signal; App will handle URL write
-    (window as any).__mapViewport = { lat: center[0], lng: center[1], zoom: z };
-  };
-
-  // Expose function to programmatically set map viewport (for navigation)
-  useEffect(() => {
-    (window as any).__setMapViewport = (viewport: { lat: number; lng: number; zoom: number }) => {
-      if (projectorRef.current) {
-        projectorRef.current.setView([viewport.lat, viewport.lng], viewport.zoom);
-      }
-    };
     
-    return () => {
-      delete (window as any).__setMapViewport;
-    };
-  }, []);
+    const viewport = { lat: center[0], lng: center[1], zoom: z };
+    onViewportChange?.(viewport);
+  };
 
   const visibleRoutes = useMemo(() => {
     if (selectedRoute) return [selectedRoute];
@@ -161,11 +157,28 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const displayedRoutes = visibleRoutes;
 
-  // Expose visible route ids to parent via a custom event on window (simple signal)
-  useEffect(() => {
-    const ids = new Set(visibleRoutes.map(r => r.routeId));
-    (window as any).__visibleRouteIds = ids;
-  }, [visibleRoutes]);
+  // Expose map control methods via ref
+  useImperativeHandle(ref, () => ({
+    setViewport: (viewport: { lat: number; lng: number; zoom: number }) => {
+      if (projectorRef.current) {
+        projectorRef.current.setView([viewport.lat, viewport.lng], viewport.zoom);
+      }
+    },
+    getViewport: () => {
+      if (projectorRef.current) {
+        const center = projectorRef.current.getCenter();
+        const z = projectorRef.current.getZoom();
+        return { lat: center.lat, lng: center.lng, zoom: z };
+      }
+      return null;
+    },
+    getVisibleRouteIds: () => {
+      const ids = new Set<string>();
+      visibleRoutes.forEach(r => ids.add(r.routeId));
+      return ids;
+    }
+  }), [visibleRoutes]);
+
 
   return (
     <div className="h-full w-full">
@@ -252,4 +265,4 @@ export const MapView: React.FC<MapViewProps> = ({
       </MapContainer>
     </div>
   );
-};
+});

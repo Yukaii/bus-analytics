@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMedia } from 'react-use';
-import { MapView } from './components/MapView';
+import { MapView, MapViewRef } from './components/MapView';
 import { SidebarTabs } from './components/SidebarTabs';
 import { RouteNavigator } from './components/RouteNavigator';
 import { Sheet } from 'react-modal-sheet';
@@ -24,6 +24,7 @@ function App() {
   });
   const isNavigatingRef = useRef(false);
   const skipNextViewportSync = useRef(false);
+  const mapViewRef = useRef<MapViewRef>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -63,6 +64,25 @@ function App() {
     pushUrlState(newState, replace);
   };
 
+  // Handle viewport changes from MapView
+  const handleViewportChange = (viewport: { lat: number; lng: number; zoom: number }) => {
+    if (skipNextViewportSync.current) {
+      skipNextViewportSync.current = false;
+      return;
+    }
+    
+    if (isNavigatingRef.current) return;
+    
+    // Check if viewport has changed significantly
+    const latChanged = Math.abs(urlStateRef.current.lat - viewport.lat) > 1e-5;
+    const lngChanged = Math.abs(urlStateRef.current.lng - viewport.lng) > 1e-5;
+    const zoomChanged = Math.round(urlStateRef.current.zoom) !== Math.round(viewport.zoom);
+    
+    if (latChanged || lngChanged || zoomChanged) {
+      syncUrlState({ lat: viewport.lat, lng: viewport.lng, zoom: viewport.zoom }, true);
+    }
+  };
+
   // Initialize from URL and load data
   useEffect(() => {
     // Parse initial URL state
@@ -98,28 +118,6 @@ function App() {
       });
   }, []);
 
-  // Sync map viewport to URL state
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (skipNextViewportSync.current) {
-        skipNextViewportSync.current = false;
-        return;
-      }
-      
-      const v = (window as any).__mapViewport as { lat: number; lng: number; zoom: number } | undefined;
-      if (!v || isNavigatingRef.current) return;
-      
-      // Check if viewport has changed significantly
-      const latChanged = Math.abs(urlStateRef.current.lat - v.lat) > 1e-5;
-      const lngChanged = Math.abs(urlStateRef.current.lng - v.lng) > 1e-5;
-      const zoomChanged = Math.round(urlStateRef.current.zoom) !== Math.round(v.zoom);
-      
-      if (latChanged || lngChanged || zoomChanged) {
-        syncUrlState({ lat: v.lat, lng: v.lng, zoom: v.zoom }, true);
-      }
-    }, 600);
-    return () => clearInterval(t);
-  }, []);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -146,7 +144,7 @@ function App() {
       }
 
       // Update map viewport to match URL
-      (window as any).__setMapViewport?.({
+      mapViewRef.current?.setViewport({
         lat: urlStateRef.current.lat,
         lng: urlStateRef.current.lng,
         zoom: urlStateRef.current.zoom
@@ -173,11 +171,13 @@ function App() {
     skipNextViewportSync.current = true;
   };
 
-  // Poll lightweight signal from MapView to update visible route ids for sidebar count
+  // Update visible route IDs periodically for sidebar count
   useEffect(() => {
     const t = setInterval(() => {
-      const ids = (window as any).__visibleRouteIds as Set<string> | undefined;
-      if (ids) setVisibleRouteIds(new Set(ids));
+      if (mapViewRef.current) {
+        const ids = mapViewRef.current.getVisibleRouteIds();
+        setVisibleRouteIds(new Set(ids));
+      }
     }, 500);
     return () => clearInterval(t);
   }, []);
@@ -285,12 +285,14 @@ function App() {
         {/* Center - Map */}
         <div className="flex-1 relative">
           <MapView
+            ref={mapViewRef}
             routes={routes}
             stops={stops}
             selectedRoute={selectedRoute}
             showAllRoutes={showAllRoutes}
             onStopClick={handleStopClick}
             onRouteSelect={handleRouteSelect}
+            onViewportChange={handleViewportChange}
           />
 
           {/* Mobile Clear Selection Button */}
