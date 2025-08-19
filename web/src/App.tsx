@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useMedia } from 'react-use';
 import { MapView } from './components/MapView';
 import { RouteList } from './components/RouteList';
 import { StatsPanel } from './components/StatsPanel';
+import { Sheet } from 'react-modal-sheet';
 import { loadBusData } from './utils/dataProcessor';
 import { ProcessedRoute, ProcessedStop } from './types/BusData';
 import { Loader, Bus, PanelLeftOpen, PanelLeftClose, Moon, Sun } from 'lucide-react';
@@ -10,6 +12,8 @@ import { parseUrlState, pushUrlState } from './utils/urlState';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
+  const isMobile = useMedia('(max-width: 767px)');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -24,6 +28,13 @@ function App() {
     if (theme === 'dark') root.classList.add('dark'); else root.classList.remove('dark');
     try { localStorage.setItem('theme', theme); } catch {}
   }, [theme]);
+
+  // Close desktop sidebar when switching to mobile
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile, sidebarOpen]);
   const [routes, setRoutes] = useState<ProcessedRoute[]>([]);
   const [stops, setStops] = useState<ProcessedStop[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<ProcessedRoute | null>(null);
@@ -45,14 +56,14 @@ function App() {
           const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route);
           if (r) setSelectedRoute(r);
         }
-        
+
         // Set default viewport in URL if not present
         const sp = new URLSearchParams(window.location.search);
         const hasViewport = sp.has('lat') && sp.has('lng') && sp.has('zoom');
         if (!hasViewport) {
           pushUrlState({ lat: 35.68853, lng: 139.75742, zoom: 12 }, true);
         }
-        
+
         setLoading(false);
       })
       .catch((err) => {
@@ -184,31 +195,36 @@ function App() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Route List */}
-        <div className={`relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-[width] duration-300 overflow-hidden ${sidebarOpen ? 'w-80' : 'w-0'}`} id="sidebar">
-          {sidebarOpen && (
-            <RouteList
-              routes={routes}
-              selectedRoute={selectedRoute}
-              showAllRoutes={showAllRoutes}
-              onRouteSelect={handleRouteSelect}
-              onToggleShowAllRoutes={handleToggleShowAllRoutes}
-              visibleRouteIds={visibleRouteIds}
-            />
-          )}
-        </div>
+        {/* Desktop Left Sidebar - Route List */}
+        {!isMobile && (
+          <>
+            <div className={`relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-[width] duration-300 overflow-hidden ${sidebarOpen ? 'w-80' : 'w-0'}`} id="sidebar">
+              {sidebarOpen && (
+                <RouteList
+                  routes={routes}
+                  selectedRoute={selectedRoute}
+                  showAllRoutes={showAllRoutes}
+                  onRouteSelect={handleRouteSelect}
+                  onToggleShowAllRoutes={handleToggleShowAllRoutes}
+                  visibleRouteIds={visibleRouteIds}
+                  isMobile={false}
+                />
+              )}
+            </div>
 
-        {/* Floating sidebar toggle like Google Maps */}
-        <button
-          type='button'
-          aria-label="Toggle sidebar"
-          onClick={() => setSidebarOpen(o => !o)}
-          className={`fixed bottom-10 z-[9999] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl p-2 transition-all duration-300 ${
-            sidebarOpen ? 'left-[332px]' : 'left-3'
-          }`}
-        >
-          {sidebarOpen ? <PanelLeftClose className="w-5 h-5 text-gray-700 dark:text-gray-300" /> : <PanelLeftOpen className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
-        </button>
+            {/* Floating sidebar toggle like Google Maps */}
+            <button
+              type='button'
+              aria-label="Toggle sidebar"
+              onClick={() => setSidebarOpen(o => !o)}
+              className={`fixed bottom-10 z-[999] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl p-2 transition-all duration-300 ${
+                sidebarOpen ? 'left-[332px]' : 'left-3'
+              }`}
+            >
+              {sidebarOpen ? <PanelLeftClose className="w-5 h-5 text-gray-700 dark:text-gray-300" /> : <PanelLeftOpen className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
+            </button>
+          </>
+        )}
 
         {/* Center - Map */}
         <div className="flex-1 relative">
@@ -242,11 +258,44 @@ function App() {
           )}
         </div>
 
-        {/* Right Sidebar - Stats */}
-        <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
-          <StatsPanel routes={routes} selectedRoute={selectedRoute} />
-        </div>
+        {/* Desktop Right Sidebar - Stats */}
+        {!isMobile && (
+          <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
+            <StatsPanel routes={routes} selectedRoute={selectedRoute} />
+          </div>
+        )}
       </div>
+
+      {/* Mobile Bottom Sheet */}
+      {isMobile && (
+        <Sheet
+          isOpen={true}
+          onClose={() => {}}
+          snapPoints={[1, 0.7, 80]}
+          initialSnap={2}
+        >
+          <Sheet.Container style={{ backgroundColor: theme === 'dark' ? 'rgb(17 24 39)' : 'white' }}>
+            <Sheet.Header />
+            <Sheet.Content>
+              <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                <h3 className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Tokyo Bus Routes</h3>
+              </div>
+              <Sheet.Scroller draggableAt="top" style={{ backgroundColor: theme === 'dark' ? 'rgb(17 24 39)' : 'white' }}>
+                <RouteList
+                  routes={routes}
+                  selectedRoute={selectedRoute}
+                  showAllRoutes={showAllRoutes}
+                  onRouteSelect={handleRouteSelect}
+                  onToggleShowAllRoutes={handleToggleShowAllRoutes}
+                  visibleRouteIds={visibleRouteIds}
+                  isMobile={true}
+                />
+              </Sheet.Scroller>
+            </Sheet.Content>
+          </Sheet.Container>
+          <Sheet.Backdrop />
+        </Sheet>
+      )}
 
       {/* Footer */}
       <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-2">

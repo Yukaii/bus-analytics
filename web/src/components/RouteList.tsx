@@ -9,6 +9,7 @@ interface RouteListProps {
   onRouteSelect: (route: ProcessedRoute | null) => void;
   onToggleShowAllRoutes: (show: boolean) => void;
   visibleRouteIds?: Set<string>;
+  isMobile?: boolean;
 }
 
 export const RouteList: React.FC<RouteListProps> = ({
@@ -17,7 +18,8 @@ export const RouteList: React.FC<RouteListProps> = ({
   showAllRoutes,
   onRouteSelect,
   onToggleShowAllRoutes,
-  visibleRouteIds
+  visibleRouteIds,
+  isMobile = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'distance' | 'stops'>('name');
@@ -142,18 +144,26 @@ export const RouteList: React.FC<RouteListProps> = ({
                     </p>
                   )}
                   
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-600 dark:text-gray-300">
-                    <div className="flex items-center gap-1">
+                  {!isMobile && (
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-600 dark:text-gray-300">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>{route.numStops} stops</span>
+                      </div>
+                      <div>
+                        <span>Avg: {route.avgDistance.toFixed(2)}km</span>
+                      </div>
+                      <div>
+                        <span>Total: {route.totalDistance.toFixed(1)}km</span>
+                      </div>
+                    </div>
+                  )}
+                  {isMobile && (
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-600 dark:text-gray-300">
                       <MapPin className="w-3 h-3" />
                       <span>{route.numStops} stops</span>
                     </div>
-                    <div>
-                      <span>Avg: {route.avgDistance.toFixed(2)}km</span>
-                    </div>
-                    <div>
-                      <span>Total: {route.totalDistance.toFixed(1)}km</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
