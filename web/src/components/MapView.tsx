@@ -111,6 +111,19 @@ export const MapView: React.FC<MapViewProps> = ({
     (window as any).__mapViewport = { lat: center[0], lng: center[1], zoom: z };
   };
 
+  // Expose function to programmatically set map viewport (for navigation)
+  useEffect(() => {
+    (window as any).__setMapViewport = (viewport: { lat: number; lng: number; zoom: number }) => {
+      if (projectorRef.current) {
+        projectorRef.current.setView([viewport.lat, viewport.lng], viewport.zoom);
+      }
+    };
+    
+    return () => {
+      delete (window as any).__setMapViewport;
+    };
+  }, []);
+
   const visibleRoutes = useMemo(() => {
     if (selectedRoute) return [selectedRoute];
     if (!showAllRoutes || !bbox) return [];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMedia } from 'react-use';
 import { MapView } from './components/MapView';
 import { SidebarTabs } from './components/SidebarTabs';
@@ -13,6 +13,17 @@ import { parseUrlState, pushUrlState } from './utils/urlState';
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useMedia('(max-width: 767px)');
+  
+  // URL state management refs
+  const urlStateRef = useRef({
+    route: null as string | null,
+    all: true as boolean,
+    lat: 35.68853 as number,
+    lng: 139.75742 as number,
+    zoom: 12 as number
+  });
+  const isNavigatingRef = useRef(false);
+  const skipNextViewportSync = useRef(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -43,26 +54,41 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Centralized URL state sync function
+  const syncUrlState = (partialState: Partial<typeof urlStateRef.current>, replace = false) => {
+    if (isNavigatingRef.current) return; // Don't sync during navigation
+    
+    const newState = { ...urlStateRef.current, ...partialState };
+    urlStateRef.current = newState;
+    pushUrlState(newState, replace);
+  };
+
+  // Initialize from URL and load data
   useEffect(() => {
+    // Parse initial URL state
+    const initialUrlState = parseUrlState();
+    urlStateRef.current = {
+      route: initialUrlState.route || null,
+      all: initialUrlState.all ?? true,
+      lat: initialUrlState.lat ?? 35.68853,
+      lng: initialUrlState.lng ?? 139.75742,
+      zoom: initialUrlState.zoom ?? 12
+    };
+
     loadBusData()
       .then(({ stops, routes }) => {
         setStops(stops);
         setRoutes(routes);
-        // Initialize from URL after data is loaded, so we can match route ids
-        const u = parseUrlState();
-        if (typeof u.all === 'boolean') setShowAllRoutes(u.all);
-        if (u.route) {
-          const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route);
+        
+        // Set initial state from URL
+        setShowAllRoutes(urlStateRef.current.all);
+        if (urlStateRef.current.route) {
+          const r = routes.find(rt => rt.routeId === urlStateRef.current.route || rt.routeName === urlStateRef.current.route);
           if (r) setSelectedRoute(r);
         }
 
-        // Set default viewport in URL if not present
-        const sp = new URLSearchParams(window.location.search);
-        const hasViewport = sp.has('lat') && sp.has('lng') && sp.has('zoom');
-        if (!hasViewport) {
-          pushUrlState({ lat: 35.68853, lng: 139.75742, zoom: 12 }, true);
-        }
-
+        // Ensure URL has all required params
+        syncUrlState({}, true);
         setLoading(false);
       })
       .catch((err) => {
@@ -72,38 +98,66 @@ function App() {
       });
   }, []);
 
-  // Sync map viewport (lat,lng,zoom) to URL based on MapView signal
+  // Sync map viewport to URL state
   useEffect(() => {
     const t = setInterval(() => {
+      if (skipNextViewportSync.current) {
+        skipNextViewportSync.current = false;
+        return;
+      }
+      
       const v = (window as any).__mapViewport as { lat: number; lng: number; zoom: number } | undefined;
-      if (!v) return;
-      // Suppress viewport URL sync briefly after route selection to avoid racing the route push
-      const suppressUntil = (window as any).__suppressViewportUrlSyncUntil as number | undefined;
-      if (suppressUntil && Date.now() < suppressUntil) return;
-      const sp = new URLSearchParams(window.location.search);
-      const lat = Number(sp.get('lat')); const lng = Number(sp.get('lng')); const zoom = Number(sp.get('zoom'));
-      const changed = !Number.isFinite(lat) || Math.abs(lat - v.lat) > 1e-5 || !Number.isFinite(lng) || Math.abs(lng - v.lng) > 1e-5 || !Number.isFinite(zoom) || Math.round(zoom) !== Math.round(v.zoom);
-      if (changed) {
-        // Preserve current route and flags by merging via pushUrlState/buildSearch
-        pushUrlState({ lat: v.lat, lng: v.lng, zoom: v.zoom }, true);
+      if (!v || isNavigatingRef.current) return;
+      
+      // Check if viewport has changed significantly
+      const latChanged = Math.abs(urlStateRef.current.lat - v.lat) > 1e-5;
+      const lngChanged = Math.abs(urlStateRef.current.lng - v.lng) > 1e-5;
+      const zoomChanged = Math.round(urlStateRef.current.zoom) !== Math.round(v.zoom);
+      
+      if (latChanged || lngChanged || zoomChanged) {
+        syncUrlState({ lat: v.lat, lng: v.lng, zoom: v.zoom }, true);
       }
     }, 600);
     return () => clearInterval(t);
   }, []);
 
-  // Handle browser back/forward to restore route selection and list toggle
+  // Handle browser back/forward navigation
   useEffect(() => {
     const onPop = () => {
-      const u = parseUrlState();
-      if (typeof u.all === 'boolean') setShowAllRoutes(u.all);
-      if (u.route) {
-        const r = routes.find(rt => rt.routeId === u.route || rt.routeName === u.route) || null;
+      isNavigatingRef.current = true;
+      
+      // Parse URL state and update our ref
+      const newUrlState = parseUrlState();
+      urlStateRef.current = {
+        route: newUrlState.route || null,
+        all: newUrlState.all ?? true,
+        lat: newUrlState.lat ?? 35.68853,
+        lng: newUrlState.lng ?? 139.75742,
+        zoom: newUrlState.zoom ?? 12
+      };
+      
+      // Update React state
+      setShowAllRoutes(urlStateRef.current.all);
+      if (urlStateRef.current.route) {
+        const r = routes.find(rt => rt.routeId === urlStateRef.current.route || rt.routeName === urlStateRef.current.route) || null;
         setSelectedRoute(r);
       } else {
         setSelectedRoute(null);
       }
 
+      // Update map viewport to match URL
+      (window as any).__setMapViewport?.({
+        lat: urlStateRef.current.lat,
+        lng: urlStateRef.current.lng,
+        zoom: urlStateRef.current.zoom
+      });
+
+      // Re-enable syncing after a short delay
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 500);
     };
+    
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [routes]);
@@ -111,10 +165,12 @@ function App() {
   const handleRouteSelect = (route: ProcessedRoute | null) => {
     setSelectedRoute(route);
     setSelectedStop(null);
-    // Update URL state
-    pushUrlState({ route: route ? route.routeId : null });
-    // After fitBounds, map will move; temporarily pause viewport URL syncing to avoid race
-    (window as any).__suppressViewportUrlSyncUntil = Date.now() + 800;
+    
+    // Update URL state without viewport changes (map will fit bounds)
+    syncUrlState({ route: route ? route.routeId : null });
+    
+    // Skip next viewport sync since map will move programmatically
+    skipNextViewportSync.current = true;
   };
 
   // Poll lightweight signal from MapView to update visible route ids for sidebar count
@@ -133,12 +189,13 @@ function App() {
 
   const handleToggleShowAllRoutes = (show: boolean) => {
     setShowAllRoutes(show);
-    // Clear selected route when toggling show all routes
+    
+    // Clear selected route when toggling to show all routes
     if (show) {
       setSelectedRoute(null);
-      pushUrlState({ route: null, all: show });
+      syncUrlState({ route: null, all: show });
     } else {
-      pushUrlState({ all: show });
+      syncUrlState({ all: show });
     }
   };
 
