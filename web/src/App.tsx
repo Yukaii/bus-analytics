@@ -6,7 +6,7 @@ import { RouteNavigator } from './components/RouteNavigator';
 import { Sheet } from 'react-modal-sheet';
 import { loadBusData } from './utils/dataProcessor';
 import { ProcessedRoute, ProcessedStop } from './types/BusData';
-import { Loader, Bus, PanelLeftOpen, PanelLeftClose, Moon, Sun } from 'lucide-react';
+import { Loader, Bus, PanelLeftOpen, PanelLeftClose, Moon, Sun, X } from 'lucide-react';
 import './App.css';
 import { parseUrlState, pushUrlState } from './utils/urlState';
 
@@ -235,6 +235,18 @@ function App() {
             onStopClick={handleStopClick}
             onRouteSelect={handleRouteSelect}
           />
+
+          {/* Mobile Clear Selection Button */}
+          {isMobile && selectedRoute && (
+            <button
+              onClick={() => handleRouteSelect(null)}
+              className="absolute top-4 right-4 z-[999] flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              title="Clear route selection"
+            >
+              <X className="w-4 h-4" />
+              <span>Clear Route</span>
+            </button>
+          )}
 
           {/* Selected Stop Info Overlay */}
           {selectedStop && (
