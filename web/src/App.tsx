@@ -12,7 +12,6 @@ import { parseUrlState, pushUrlState } from './utils/urlState';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
   const isMobile = useMedia('(max-width: 767px)');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
