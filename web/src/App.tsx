@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useMedia } from 'react-use';
 import { MapView } from './components/MapView';
-import { RouteList } from './components/RouteList';
-import { StatsPanel } from './components/StatsPanel';
+import { SidebarTabs } from './components/SidebarTabs';
+import { RouteNavigator } from './components/RouteNavigator';
 import { Sheet } from 'react-modal-sheet';
 import { loadBusData } from './utils/dataProcessor';
 import { ProcessedRoute, ProcessedStop } from './types/BusData';
@@ -199,7 +199,7 @@ function App() {
           <>
             <div className={`relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-[width] duration-300 overflow-hidden ${sidebarOpen ? 'w-80' : 'w-0'}`} id="sidebar">
               {sidebarOpen && (
-                <RouteList
+                <SidebarTabs
                   routes={routes}
                   selectedRoute={selectedRoute}
                   showAllRoutes={showAllRoutes}
@@ -257,12 +257,6 @@ function App() {
           )}
         </div>
 
-        {/* Desktop Right Sidebar - Stats */}
-        {!isMobile && (
-          <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
-            <StatsPanel routes={routes} selectedRoute={selectedRoute} />
-          </div>
-        )}
       </div>
 
       {/* Mobile Bottom Sheet */}
@@ -276,11 +270,8 @@ function App() {
           <Sheet.Container style={{ backgroundColor: theme === 'dark' ? 'rgb(17 24 39)' : 'white' }}>
             <Sheet.Header />
             <Sheet.Content>
-              <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-                <h3 className={`font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Tokyo Bus Routes</h3>
-              </div>
               <Sheet.Scroller draggableAt="top" style={{ backgroundColor: theme === 'dark' ? 'rgb(17 24 39)' : 'white' }}>
-                <RouteList
+                <RouteNavigator
                   routes={routes}
                   selectedRoute={selectedRoute}
                   showAllRoutes={showAllRoutes}

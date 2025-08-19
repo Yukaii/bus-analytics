@@ -9,73 +9,7 @@ interface StatsPanelProps {
 }
 
 export const StatsPanel: React.FC<StatsPanelProps> = ({ routes, selectedRoute }) => {
-  if (selectedRoute) {
-    return (
-      <div className="p-4 bg-white dark:bg-gray-900">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-gray-100">
-          <RouteIcon className="w-5 h-5" />
-          Route Details
-        </h3>
-        
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{selectedRoute.routeName}</h4>
-            {selectedRoute.routeNameJa && (
-              <p className="text-blue-600 dark:text-blue-400">{selectedRoute.routeNameJa}</p>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {selectedRoute.numStops}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Total Stops</div>
-            </div>
-            
-            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {selectedRoute.avgDistance.toFixed(2)}km
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Avg Distance</div>
-            </div>
-            
-            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {selectedRoute.totalDistance.toFixed(1)}km
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Total Distance</div>
-            </div>
-            
-            <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {selectedRoute.stops.length > 1 ? 
-                  (selectedRoute.totalDistance / (selectedRoute.stops.length - 1)).toFixed(2) : 
-                  '0.00'
-                }km
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Distance/Stop</div>
-            </div>
-          </div>
-          
-          {/* Route Stops List */}
-          <div className="mt-6">
-            <h5 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Route Stops</h5>
-            <div className="max-h-64 overflow-y-auto">
-              {selectedRoute.stops.map((stop, index) => (
-                <div key={stop.id} className="flex items-center gap-2 py-1 text-sm">
-                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </div>
-                  <span className="flex-1 text-gray-900 dark:text-gray-100">{stop.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Always show overall statistics now that individual route details are in stack navigation
 
   // Overall statistics when no route is selected
   const totalStops = routes.reduce((sum, route) => sum + route.numStops, 0);
