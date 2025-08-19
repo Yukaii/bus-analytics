@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
 });
 
 export interface MapViewRef {
-  setViewport: (viewport: { lat: number; lng: number; zoom: number }) => void;
+  setViewport: (viewport: { lat: number; lng: number; zoom: number }, options?: { animate?: boolean }) => void;
   getViewport: () => { lat: number; lng: number; zoom: number } | null;
   getVisibleRouteIds: () => Set<string>;
 }
@@ -159,9 +159,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
 
   // Expose map control methods via ref
   useImperativeHandle(ref, () => ({
-    setViewport: (viewport: { lat: number; lng: number; zoom: number }) => {
+    setViewport: (viewport: { lat: number; lng: number; zoom: number }, options?: { animate?: boolean }) => {
       if (projectorRef.current) {
-        projectorRef.current.setView([viewport.lat, viewport.lng], viewport.zoom);
+        if (options?.animate) {
+          // Use flyTo for smooth animation
+          projectorRef.current.flyTo([viewport.lat, viewport.lng], viewport.zoom, {
+            duration: 0.8 // Smooth 0.8 second animation
+          });
+        } else {
+          // Instant jump without animation
+          projectorRef.current.setView([viewport.lat, viewport.lng], viewport.zoom, { animate: false });
+        }
       }
     },
     getViewport: () => {

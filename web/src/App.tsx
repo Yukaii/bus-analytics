@@ -64,6 +64,19 @@ function App() {
     pushUrlState(newState, replace);
   };
 
+  // Calculate distance between two geographic points (Haversine formula)
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in kilometers
+  };
+
   // Handle viewport changes from MapView
   const handleViewportChange = (viewport: { lat: number; lng: number; zoom: number }) => {
     if (skipNextViewportSync.current) {
@@ -143,17 +156,42 @@ function App() {
         setSelectedRoute(null);
       }
 
-      // Update map viewport to match URL
-      mapViewRef.current?.setViewport({
-        lat: urlStateRef.current.lat,
-        lng: urlStateRef.current.lng,
-        zoom: urlStateRef.current.zoom
-      });
+      // Update map viewport to match URL with smart animation
+      const currentViewport = mapViewRef.current?.getViewport();
+      if (currentViewport) {
+        const distance = calculateDistance(
+          currentViewport.lat, currentViewport.lng,
+          urlStateRef.current.lat, urlStateRef.current.lng
+        );
+        
+        // Use smooth animation if distance is reasonable (< 50km) and zoom difference is small
+        const zoomDiff = Math.abs(currentViewport.zoom - urlStateRef.current.zoom);
+        const shouldAnimate = distance < 50 && zoomDiff < 3;
+        
+        mapViewRef.current?.setViewport({
+          lat: urlStateRef.current.lat,
+          lng: urlStateRef.current.lng,
+          zoom: urlStateRef.current.zoom
+        }, { animate: shouldAnimate });
+      } else {
+        // Fallback for when viewport is not available
+        mapViewRef.current?.setViewport({
+          lat: urlStateRef.current.lat,
+          lng: urlStateRef.current.lng,
+          zoom: urlStateRef.current.zoom
+        });
+      }
 
-      // Re-enable syncing after a short delay
+      // Re-enable syncing after animation completes (longer delay for animated transitions)
+      const delay = currentViewport && 
+        calculateDistance(currentViewport.lat, currentViewport.lng, urlStateRef.current.lat, urlStateRef.current.lng) < 50 && 
+        Math.abs(currentViewport.zoom - urlStateRef.current.zoom) < 3 
+        ? 1000 // Wait for animation to complete
+        : 300;  // Short delay for instant transitions
+        
       setTimeout(() => {
         isNavigatingRef.current = false;
-      }, 500);
+      }, delay);
     };
     
     window.addEventListener('popstate', onPop);
