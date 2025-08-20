@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RouteList } from './RouteList';
 import { RouteDetailView } from './RouteDetailView';
 import { useNavigationStack } from '../hooks/useNavigationStack';
@@ -24,6 +24,18 @@ export const RouteNavigator: React.FC<RouteNavigatorProps> = ({
   isMobile = false
 }) => {
   const { currentView, push, pop } = useNavigationStack();
+
+  // Listen for popup route selection events
+  useEffect(() => {
+    const handlePopupRouteSelect = (event: CustomEvent) => {
+      const { route } = event.detail;
+      // Push detail view to navigation stack
+      push({ type: 'detail', route });
+    };
+
+    window.addEventListener('popupRouteSelect', handlePopupRouteSelect as EventListener);
+    return () => window.removeEventListener('popupRouteSelect', handlePopupRouteSelect as EventListener);
+  }, [push]);
 
   const handleRouteSelect = (route: ProcessedRoute | null) => {
     if (!route) {

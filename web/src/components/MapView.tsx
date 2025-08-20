@@ -27,6 +27,7 @@ interface MapViewProps {
   onStopClick: (stop: ProcessedStop) => void;
   onRouteSelect: (route: ProcessedRoute | null) => void;
   onViewportChange?: (viewport: { lat: number; lng: number; zoom: number }) => void;
+  onPopupRouteSelect?: (route: ProcessedRoute) => void;
 }
 
 const getRouteColor = (routeName: string): string => {
@@ -93,7 +94,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
   showAllRoutes,
   onStopClick,
   onRouteSelect,
-  onViewportChange
+  onViewportChange,
+  onPopupRouteSelect
 }, ref) => {
   const initialCenter = (() => {
     const sp = new URLSearchParams(window.location.search);
@@ -243,7 +245,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(({
                       return route ? (
                         <button
                           key={routeId}
-                          onClick={() => onRouteSelect(route)}
+                          onClick={() => onPopupRouteSelect ? onPopupRouteSelect(route) : onRouteSelect(route)}
                           className="block w-full text-left px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition-colors"
                         >
                           <div className="font-medium text-blue-800">{route.routeName}</div>

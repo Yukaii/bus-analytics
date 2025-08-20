@@ -209,6 +209,15 @@ function App() {
     skipNextViewportSync.current = true;
   };
 
+  // Handle popup route selection - trigger navigation detail view
+  const handlePopupRouteSelect = (route: ProcessedRoute) => {
+    // First focus the map to the route
+    handleRouteSelect(route);
+    
+    // Then trigger a custom event that RouteNavigator can listen to
+    window.dispatchEvent(new CustomEvent('popupRouteSelect', { detail: { route } }));
+  };
+
   // Update visible route IDs periodically for sidebar count
   useEffect(() => {
     const t = setInterval(() => {
@@ -331,6 +340,7 @@ function App() {
             onStopClick={handleStopClick}
             onRouteSelect={handleRouteSelect}
             onViewportChange={handleViewportChange}
+            onPopupRouteSelect={handlePopupRouteSelect}
           />
 
           {/* Mobile Clear Selection Button */}
